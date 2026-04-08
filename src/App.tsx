@@ -37,16 +37,16 @@ type CorpusImage = { name: string; url: string };
 type TopPrediction = { id: string; label: string; confidence: number };
 type AnalyzeResponse = {
   baseImage: string;
-  attackedImage: string;
+  perturbedImage: string;
   baseTop: TopPrediction[];
-  attackedTop: TopPrediction[];
+  perturbedTop: TopPrediction[];
   epsilon: number;
   steps: number;
   alpha: number;
   attack: string;
   anomaly: {
     original: number;
-    attacked: number;
+    perturbed: number;
     delta: number;
     thresholdFlagged: boolean;
   };
@@ -88,12 +88,12 @@ export default function App() {
   const chartRows = useMemo(() => {
     if (!result) return [] as { label: string; confidence: number }[];
     const baseTop = result.baseTop[0];
-    const attackedTop = result.attackedTop[0];
+    const perturbedTop = result.perturbedTop[0];
     return [
       { label: `Original: ${baseTop.label}`, confidence: baseTop.confidence },
       {
-        label: `Attacked: ${attackedTop.label}`,
-        confidence: attackedTop.confidence,
+        label: `Perturbed: ${perturbedTop.label}`,
+        confidence: perturbedTop.confidence,
       },
     ];
   }, [result]);
@@ -134,11 +134,12 @@ export default function App() {
     chartInstanceRef.current?.destroy?.();
     chartInstanceRef.current = new window.Chart(chartRef.current, {
       type: "bar",
+      // disable legend
       data: {
         labels: chartRows.map((item) => item.label),
         datasets: [
           {
-            label: "Top prediction confidence",
+            label: "Prediction confidence",
             data: chartRows.map((x) => Number((x.confidence * 100).toFixed(1))),
             backgroundColor: ["rgba(25,118,210,0.8)", "rgba(211,47,47,0.75)"],
             borderRadius: 6,
@@ -148,7 +149,7 @@ export default function App() {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: "top" } },
+        plugins: { legend: { display: false } },
         scales: {
           x: { ticks: { autoSkip: false, maxRotation: 25, minRotation: 0 } },
           y: {
@@ -178,7 +179,18 @@ export default function App() {
       <AppBar position="static" color="primary">
         <Toolbar>
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            Animal Recognition Attack Demo
+            CA Math Expo
+          </Typography>
+          <Box
+            sx={{
+              width: 2,
+              height: 25,
+              bgcolor: "rgb(255,255,255)",
+              mx: 2,
+            }}
+          />
+          <Typography variant="h6" sx={{ fontWeight: 500 }}>
+            Adverarial Machine Learning Attacks
           </Typography>
         </Toolbar>
       </AppBar>
@@ -187,10 +199,10 @@ export default function App() {
         <Stack spacing={3}>
           <Paper elevation={1} sx={{ p: 3 }}>
             <Typography variant="h4" gutterBottom>
-              MobileNetV2 adversarial image playground
+              MobileNetV2 Adversarial Image Playground
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              Use a preset animal image or upload your own, then run adversarial
+              Use a preset image or upload your own. Then run adversarial
               perturbations and compare how the model's predictions change.
             </Typography>
           </Paper>
@@ -216,12 +228,12 @@ export default function App() {
                       <FormControlLabel
                         value="preset"
                         control={<Radio />}
-                        label="Use one of our preset corpus images"
+                        label="Use a preset image"
                       />
                       <FormControlLabel
                         value="upload"
                         control={<Radio />}
-                        label="Upload my own image"
+                        label="Upload your own image"
                       />
                     </RadioGroup>
                   </Box>
@@ -332,13 +344,6 @@ export default function App() {
                     </Typography>
                   </Box>
 
-                  <Alert severity="info">
-                    It is normal for the attacked image to look almost identical
-                    to a human while still changing the model's prediction.
-                    Adversarial attacks are designed to exploit model
-                    sensitivity, not human perception.
-                  </Alert>
-
                   <Button
                     variant="contained"
                     size="large"
@@ -354,28 +359,6 @@ export default function App() {
             </Card>
 
             <Stack spacing={3} sx={{ flex: 1 }}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Current source and result summary
-                  </Typography>
-                  <Typography variant="body1">
-                    Source: <strong>{activeSourceLabel}</strong>
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mt: 1 }}
-                  >
-                    The lists below each image show the model's ranked
-                    predictions for that specific image. The chart below is
-                    intentionally simpler: it only compares the single most
-                    confident prediction before the attack and the single most
-                    confident prediction after the attack.
-                  </Typography>
-                </CardContent>
-              </Card>
-
               <Stack direction={{ xs: "column", lg: "row" }} spacing={3}>
                 <Card sx={{ flex: 1 }}>
                   <CardContent>
@@ -413,13 +396,13 @@ export default function App() {
                 <Card sx={{ flex: 1 }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
-                      Attacked image
+                      Perturbed image
                     </Typography>
                     {result ? (
                       <Box
                         component="img"
-                        src={result.attackedImage}
-                        alt="Attacked"
+                        src={result.perturbedImage}
+                        alt="Perturbed"
                         sx={{
                           width: "100%",
                           borderRadius: 2,
@@ -428,10 +411,10 @@ export default function App() {
                       />
                     ) : null}
                     <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
-                      Top 5 model predictions for the attacked image
+                      Top 5 model predictions for the perturbed (modified) image
                     </Typography>
                     <List dense>
-                      {result?.attackedTop.map((item, idx) => (
+                      {result?.perturbedTop.map((item, idx) => (
                         <ListItem key={item.id} divider>
                           <ListItemText
                             primary={`${idx + 1}. ${item.label}`}
@@ -447,17 +430,7 @@ export default function App() {
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    Top prediction confidence before vs after attack
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 2 }}
-                  >
-                    This chart compares just two things: the model's most
-                    confident label on the original image and its most confident
-                    label on the attacked image. That keeps the comparison
-                    focused on the main classification change.
+                    Prediction confidence
                   </Typography>
                   <Box sx={{ height: 360 }}>
                     <canvas ref={chartRef} />
@@ -477,7 +450,7 @@ export default function App() {
                   >
                     This section is a simple defense check. The model looks at
                     internal activation patterns and produces a rough anomaly
-                    score. If the attacked image's score rises noticeably above
+                    score. If the perturbed image's score rises noticeably above
                     the original image's score, the system flags it as
                     suspicious. This does not prove an attack happened, but it
                     gives you a basic signal that the perturbed image may be
@@ -494,10 +467,10 @@ export default function App() {
                     </Paper>
                     <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
                       <Typography variant="body2" color="text.secondary">
-                        Attacked image score
+                        Perturbed image score
                       </Typography>
                       <Typography variant="h6">
-                        {result?.anomaly.attacked.toFixed(4) ?? "—"}
+                        {result?.anomaly.perturbed.toFixed(4) ?? "—"}
                       </Typography>
                     </Paper>
                     <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
