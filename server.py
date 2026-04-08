@@ -29,9 +29,6 @@ model = tf.keras.applications.MobileNetV2(include_top=True, weights="imagenet")
 model.trainable = False
 decode_predictions = tf.keras.applications.mobilenet_v2.decode_predictions
 loss_object = tf.keras.losses.CategoricalCrossentropy()
-anomaly_model = tf.keras.Model(
-    inputs=model.input, outputs=[model.layers[-5].output, model.layers[-3].output]
-)
 
 
 class AnalyzeRequest(BaseModel):
@@ -92,16 +89,6 @@ def iterative_attack(
     return adv
 
 
-def calculate_anomaly_score(image: tf.Tensor) -> float:
-    feature_maps = anomaly_model(image)
-    scores = []
-    for fmap in feature_maps:
-        mean_score = tf.reduce_mean(fmap)
-        var_score = tf.math.reduce_variance(fmap)
-        scores.append(mean_score + var_score)
-    return float(tf.reduce_mean(scores).numpy())
-
-
 def read_image_bytes(data: str | None, corpus_name: str | None) -> np.ndarray:
     try:
         if data:
@@ -156,9 +143,6 @@ def analyze(payload: AnalyzeRequest):
     adv_probs = model.predict(adv, verbose=0)
     adv_top = decode_top(adv_probs, top=5)
 
-    original_anomaly = calculate_anomaly_score(image)
-    perturbed_anomaly = calculate_anomaly_score(adv)
-
     return {
         "baseImage": to_display_png(image),
         "perturbedImage": to_display_png(adv),
@@ -168,12 +152,6 @@ def analyze(payload: AnalyzeRequest):
         "steps": payload.steps,
         "alpha": payload.alpha,
         "attack": payload.attack,
-        "anomaly": {
-            "original": original_anomaly,
-            "perturbed": perturbed_anomaly,
-            "delta": perturbed_anomaly - original_anomaly,
-            "thresholdFlagged": perturbed_anomaly > original_anomaly + 0.05,
-        },
     }
 
 

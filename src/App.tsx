@@ -44,12 +44,6 @@ type AnalyzeResponse = {
   steps: number;
   alpha: number;
   attack: string;
-  anomaly: {
-    original: number;
-    perturbed: number;
-    delta: number;
-    thresholdFlagged: boolean;
-  };
 };
 
 const API = "http://localhost:8000/api";
@@ -438,64 +432,6 @@ export default function App() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Anomaly detection panel
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 2 }}
-                  >
-                    This section is a simple defense check. The model looks at
-                    internal activation patterns and produces a rough anomaly
-                    score. If the perturbed image's score rises noticeably above
-                    the original image's score, the system flags it as
-                    suspicious. This does not prove an attack happened, but it
-                    gives you a basic signal that the perturbed image may be
-                    abnormal for the model.
-                  </Typography>
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                    <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Original image score
-                      </Typography>
-                      <Typography variant="h6">
-                        {result?.anomaly.original.toFixed(4) ?? "—"}
-                      </Typography>
-                    </Paper>
-                    <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Perturbed image score
-                      </Typography>
-                      <Typography variant="h6">
-                        {result?.anomaly.perturbed.toFixed(4) ?? "—"}
-                      </Typography>
-                    </Paper>
-                    <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Score increase
-                      </Typography>
-                      <Typography variant="h6">
-                        {result?.anomaly.delta.toFixed(4) ?? "—"}
-                      </Typography>
-                    </Paper>
-                    <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Suspicious?
-                      </Typography>
-                      <Typography variant="h6">
-                        {result
-                          ? result.anomaly.thresholdFlagged
-                            ? "Yes"
-                            : "No"
-                          : "—"}
-                      </Typography>
-                    </Paper>
-                  </Stack>
-                </CardContent>
-              </Card>
             </Stack>
           </Stack>
         </Stack>
