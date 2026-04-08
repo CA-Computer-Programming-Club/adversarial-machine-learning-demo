@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "serve-real": "../ml-venv/bin/python server.py"
+    "serve": "tsc -b && vite build && ./.venv/bin/fastapi run --host 0.0.0.0 server.py"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

@@ -7,17 +7,38 @@ from pathlib import Path
 import numpy as np
 import tensorflow as tf
 from PIL import Image
-from flask import Flask, jsonify, request, send_from_directory
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
-app = Flask(__name__, static_folder='dist', static_url_path='')
 BASE_DIR = Path(__file__).parent
 CORPUS_DIR = BASE_DIR / 'public' / 'corpus'
+DIST_DIR = BASE_DIR / 'dist'
+
+app = FastAPI(title='Animal Attack Demo API')
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
 
 model = tf.keras.applications.MobileNetV2(include_top=True, weights='imagenet')
 model.trainable = False
 decode_predictions = tf.keras.applications.mobilenet_v2.decode_predictions
 loss_object = tf.keras.losses.CategoricalCrossentropy()
 anomaly_model = tf.keras.Model(inputs=model.input, outputs=[model.layers[-5].output, model.layers[-3].output])
+
+
+class AnalyzeRequest(BaseModel):
+    corpusImage: str | None = None
+    image: str | None = None
+    attack: str = 'fgsm'
+    epsilon: float = 0.1
+    steps: int = 5
+    alpha: float = 0.02
 
 
 def preprocess(image_arr: np.ndarray) -> tf.Tensor:
@@ -73,15 +94,18 @@ def calculate_anomaly_score(image: tf.Tensor) -> float:
 
 
 def read_image_bytes(data: str | None, corpus_name: str | None) -> np.ndarray:
-    if data:
-        if ',' in data:
-            data = data.split(',', 1)[1]
-        raw = base64.b64decode(data)
-        img = Image.open(io.BytesIO(raw)).convert('RGB')
-    elif corpus_name:
-        img = Image.open(CORPUS_DIR / corpus_name).convert('RGB')
-    else:
-        raise ValueError('No image provided')
+    try:
+        if data:
+            if ',' in data:
+                data = data.split(',', 1)[1]
+            raw = base64.b64decode(data)
+            img = Image.open(io.BytesIO(raw)).convert('RGB')
+        elif corpus_name:
+            img = Image.open(CORPUS_DIR / corpus_name).convert('RGB')
+        else:
+            raise ValueError('No image provided')
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f'Could not read image: {exc}') from exc
     return np.array(img).astype('float32')
 
 
@@ -100,27 +124,21 @@ def corpus():
     for path in sorted(CORPUS_DIR.glob('*')):
         if path.is_file():
             files.append({'name': path.name, 'url': f'/corpus/{path.name}'})
-    return jsonify({'images': files})
+    return {'images': files}
 
 
 @app.post('/api/analyze')
-def analyze():
-    payload = request.get_json(force=True)
-    attack = payload.get('attack', 'fgsm')
-    epsilon = float(payload.get('epsilon', 0.1))
-    steps = int(payload.get('steps', 5))
-    alpha = float(payload.get('alpha', max(epsilon / max(steps, 1), 0.01)))
-
-    image_arr = read_image_bytes(payload.get('image'), payload.get('corpusImage'))
+def analyze(payload: AnalyzeRequest):
+    image_arr = read_image_bytes(payload.image, payload.corpusImage)
     image = preprocess(image_arr)
     base_probs = model.predict(image, verbose=0)
     base_top = decode_top(base_probs, top=5)
     target_index = int(np.argmax(base_probs[0]))
 
-    if attack == 'fgsm':
-        adv = fgsm_attack(image, target_index, epsilon)
+    if payload.attack == 'fgsm':
+        adv = fgsm_attack(image, target_index, payload.epsilon)
     else:
-        adv = iterative_attack(image, target_index, epsilon, alpha, steps)
+        adv = iterative_attack(image, target_index, payload.epsilon, payload.alpha, payload.steps)
 
     adv_probs = model.predict(adv, verbose=0)
     adv_top = decode_top(adv_probs, top=5)
@@ -128,38 +146,35 @@ def analyze():
     original_anomaly = calculate_anomaly_score(image)
     attacked_anomaly = calculate_anomaly_score(adv)
 
-    return jsonify({
+    return {
         'baseImage': to_display_png(image),
         'attackedImage': to_display_png(adv),
         'baseTop': base_top,
         'attackedTop': adv_top,
-        'epsilon': epsilon,
-        'steps': steps,
-        'alpha': alpha,
-        'attack': attack,
+        'epsilon': payload.epsilon,
+        'steps': payload.steps,
+        'alpha': payload.alpha,
+        'attack': payload.attack,
         'anomaly': {
             'original': original_anomaly,
             'attacked': attacked_anomaly,
             'delta': attacked_anomaly - original_anomaly,
             'thresholdFlagged': attacked_anomaly > original_anomaly + 0.05,
         },
-    })
+    }
 
 
-@app.get('/corpus/<path:name>')
+@app.get('/corpus/{name}')
 def corpus_asset(name: str):
-    return send_from_directory(CORPUS_DIR, name)
+    path = CORPUS_DIR / name
+    if not path.exists():
+        raise HTTPException(status_code=404, detail='Image not found')
+    return FileResponse(path)
 
 
 @app.get('/')
 def root():
-    return send_from_directory('dist', 'index.html')
+    return FileResponse(DIST_DIR / 'index.html')
 
 
-@app.route('/<path:path>')
-def static_proxy(path: str):
-    return send_from_directory('dist', path)
-
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8133)
+app.mount('/', StaticFiles(directory=DIST_DIR, html=True), name='static')
