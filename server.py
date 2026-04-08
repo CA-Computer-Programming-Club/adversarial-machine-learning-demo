@@ -17,7 +17,7 @@ BASE_DIR = Path(__file__).parent
 CORPUS_DIR = BASE_DIR / "public" / "corpus"
 DIST_DIR = BASE_DIR / "dist"
 
-app = FastAPI(title="Animal Attack Demo API")
+app = FastAPI(title="Adversarial Machine Learning Demo API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

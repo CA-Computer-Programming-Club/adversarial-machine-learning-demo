@@ -46,7 +46,7 @@ type AnalyzeResponse = {
   attack: string;
 };
 
-const API = "http://localhost:8000/api";
+const API = "http://localhost:8080/api";
 
 export default function App() {
   const [corpus, setCorpus] = useState<CorpusImage[]>([]);
@@ -184,7 +184,7 @@ export default function App() {
             }}
           />
           <Typography variant="h6" sx={{ fontWeight: 500 }}>
-            Adverarial Machine Learning Attacks
+            Adversarial Machine Learning Attacks
           </Typography>
         </Toolbar>
       </AppBar>
@@ -431,7 +431,6 @@ export default function App() {
                   </Box>
                 </CardContent>
               </Card>
-
             </Stack>
           </Stack>
         </Stack>
