@@ -46,7 +46,7 @@ type AnalyzeResponse = {
   attack: string;
 };
 
-const API = "http://localhost:8080/api";
+const API = "https://math-expo.cacpc.dev/api";
 
 export default function App() {
   const [corpus, setCorpus] = useState<CorpusImage[]>([]);
@@ -193,11 +193,11 @@ export default function App() {
         <Stack spacing={3}>
           <Paper elevation={1} sx={{ p: 3 }}>
             <Typography variant="h4" gutterBottom>
-              MobileNetV2 Adversarial Image Playground
+              Adversarial Image Playground
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              Use a preset image or upload your own. Then run adversarial
-              perturbations and compare how the model's predictions change.
+              Run adversarial perturbations and compare how the model's
+              predictions change.
             </Typography>
           </Paper>
 
@@ -316,8 +316,7 @@ export default function App() {
                     />
                     <Typography variant="body2" color="text.secondary">
                       Steps only matter for the iterative attack. More steps
-                      means the attack is applied in several smaller moves
-                      instead of one jump.
+                      means the attack is applied in several smaller moves.
                     </Typography>
                   </Box>
                   <Box>
@@ -332,9 +331,7 @@ export default function App() {
                       onChange={(_, v) => setAlpha(v as number)}
                     />
                     <Typography variant="body2" color="text.secondary">
-                      Alpha is the size of each iterative step. Small alpha
-                      makes gentler updates; large alpha makes each step more
-                      aggressive.
+                      Alpha is the size of each iterative step.
                     </Typography>
                   </Box>
 

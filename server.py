@@ -20,9 +20,9 @@ DIST_DIR = BASE_DIR / "dist"
 app = FastAPI(title="Adversarial Machine Learning Demo API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["http://localhost:8000", "https://math-expo.cacpc.dev"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 model = tf.keras.applications.MobileNetV2(include_top=True, weights="imagenet")
