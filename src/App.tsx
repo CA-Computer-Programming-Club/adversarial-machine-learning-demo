@@ -165,9 +165,30 @@ export default function App() {
     }
     const reader = new FileReader();
     reader.onload = () => {
-      setUploadedImage(String(reader.result || ""));
-      setInputMode("upload");
-      setUploadMessage(`Loaded image: ${file.name}`);
+      const dataUrl = String(reader.result || "");
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 512;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width >= height) {
+            height = Math.round((height * MAX) / width);
+            width = MAX;
+          } else {
+            width = Math.round((width * MAX) / height);
+            height = MAX;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        setUploadedImage(canvas.toDataURL("image/jpeg", 0.92));
+        setInputMode("upload");
+        setUploadMessage(`Loaded image: ${file.name}`);
+      };
+      img.onerror = () => setUploadMessage("Failed to decode that image file.");
+      img.src = dataUrl;
     };
     reader.onerror = () => {
       setUploadMessage("Failed to read that image file.");
