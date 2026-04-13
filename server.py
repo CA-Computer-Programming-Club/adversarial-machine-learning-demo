@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 from pathlib import Path
@@ -30,6 +31,8 @@ model = tf.keras.applications.MobileNetV2(include_top=True, weights="imagenet")
 model.trainable = False
 decode_predictions = tf.keras.applications.mobilenet_v2.decode_predictions
 loss_object = tf.keras.losses.CategoricalCrossentropy()
+
+_ML_SEMAPHORE = asyncio.Semaphore(2)
 
 
 class AnalyzeRequest(BaseModel):
@@ -145,8 +148,7 @@ def corpus():
     return {"images": files}
 
 
-@app.post("/api/analyze")
-def analyze(payload: AnalyzeRequest):
+def _run_analyze(payload: AnalyzeRequest) -> dict:
     image_arr = read_image_bytes(payload.image, payload.corpusImage)
     image = preprocess(image_arr)
     base_probs = model.predict(image, verbose=0)
@@ -173,6 +175,12 @@ def analyze(payload: AnalyzeRequest):
         "alpha": payload.alpha,
         "attack": payload.attack,
     }
+
+
+@app.post("/api/analyze")
+async def analyze(payload: AnalyzeRequest):
+    async with _ML_SEMAPHORE:
+        return await asyncio.to_thread(_run_analyze, payload)
 
 
 @app.get("/corpus/{name}")

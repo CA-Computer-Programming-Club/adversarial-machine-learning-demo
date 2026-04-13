@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "serve": "tsc -b && vite build && ./.venv/bin/fastapi run --host 0.0.0.0 --port 8080 server.py"
+    "serve": "tsc -b && vite build && ./.venv/bin/uvicorn server:app --workers 4 --host 0.0.0.0 --port 8080"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
