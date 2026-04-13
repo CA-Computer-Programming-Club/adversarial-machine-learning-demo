@@ -60,6 +60,7 @@ export default function App() {
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [uploadMessage, setUploadMessage] = useState("");
   const chartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<any>(null);
 
@@ -157,15 +158,48 @@ export default function App() {
     return () => chartInstanceRef.current?.destroy?.();
   }, [result, chartRows]);
 
-  const onUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const loadFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setUploadMessage("That file is not an image.");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       setUploadedImage(String(reader.result || ""));
       setInputMode("upload");
+      setUploadMessage(`Loaded image: ${file.name}`);
+    };
+    reader.onerror = () => {
+      setUploadMessage("Failed to read that image file.");
     };
     reader.readAsDataURL(file);
+  };
+
+  const onUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    loadFile(file);
+  };
+
+  const onPaste = async () => {
+    try {
+      if (!navigator.clipboard || !("read" in navigator.clipboard)) {
+        setUploadMessage("Clipboard image paste is not supported in this browser.");
+        return;
+      }
+      const items = await (navigator.clipboard as Clipboard & { read: () => Promise<ClipboardItem[]> }).read();
+      for (const item of items) {
+        const imageType = item.types.find((type) => type.startsWith("image/"));
+        if (!imageType) continue;
+        const blob = await item.getType(imageType);
+        const file = new File([blob], `pasted-image.${imageType.split("/")[1] || "png"}`, { type: imageType });
+        loadFile(file);
+        return;
+      }
+      setUploadMessage("No image was found in the clipboard.");
+    } catch (err) {
+      setUploadMessage(err instanceof Error ? err.message : "Failed to read image from clipboard.");
+    }
   };
 
   return (
@@ -270,16 +304,21 @@ export default function App() {
                       </Select>
                     </FormControl>
                   ) : (
-                    <Box>
-                      <Button variant="outlined" component="label">
-                        Upload image
-                        <input
-                          hidden
-                          type="file"
-                          accept="image/*"
-                          onChange={onUpload}
-                        />
-                      </Button>
+                    <Stack spacing={1.5}>
+                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                        <Button variant="outlined" component="label">
+                          Upload image
+                          <input
+                            hidden
+                            type="file"
+                            accept="image/*"
+                            onChange={onUpload}
+                          />
+                        </Button>
+                        <Button variant="outlined" onClick={() => void onPaste()}>
+                          Paste image
+                        </Button>
+                      </Stack>
                       <Typography
                         variant="body2"
                         color="text.secondary"
@@ -287,9 +326,10 @@ export default function App() {
                       >
                         {uploadedImage
                           ? "Custom image loaded."
-                          : "No uploaded image selected yet."}
+                          : "No uploaded or pasted image selected yet."}
                       </Typography>
-                    </Box>
+                      {uploadMessage ? <Alert severity="info">{uploadMessage}</Alert> : null}
+                    </Stack>
                   )}
 
                   <Divider />

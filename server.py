@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import io
 from pathlib import Path
+import binascii
 
 import numpy as np
 import tensorflow as tf
@@ -94,15 +95,34 @@ def read_image_bytes(data: str | None, corpus_name: str | None) -> np.ndarray:
         if data:
             if "," in data:
                 data = data.split(",", 1)[1]
-            raw = base64.b64decode(data)
-            img = Image.open(io.BytesIO(raw)).convert("RGB")
+            try:
+                raw = base64.b64decode(data, validate=True)
+            except binascii.Error as exc:
+                raise ValueError("Uploaded or pasted image data is not valid base64") from exc
+            img = Image.open(io.BytesIO(raw))
         elif corpus_name:
-            img = Image.open(CORPUS_DIR / corpus_name).convert("RGB")
+            img = Image.open(CORPUS_DIR / corpus_name)
         else:
             raise ValueError("No image provided")
+
+        img.load()
+        if img.mode not in {"RGB", "RGBA", "L", "LA", "P"}:
+            img = img.convert("RGBA")
+
+        if img.mode in {"RGBA", "LA"}:
+            background = Image.new("RGBA", img.size, (255, 255, 255, 255))
+            background.alpha_composite(img.convert("RGBA"))
+            img = background.convert("RGB")
+        elif img.mode == "P":
+            img = img.convert("RGBA").convert("RGB")
+        elif img.mode == "L":
+            img = img.convert("RGB")
+        else:
+            img = img.convert("RGB")
     except Exception as exc:
         raise HTTPException(
-            status_code=400, detail=f"Could not read image: {exc}"
+            status_code=400,
+            detail=f"Could not read image. Please use a valid PNG, JPG, WEBP, GIF, or other standard image format. Technical detail: {exc}",
         ) from exc
     return np.array(img).astype("float32")
 
