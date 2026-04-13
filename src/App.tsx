@@ -184,21 +184,35 @@ export default function App() {
   const onPaste = async () => {
     try {
       if (!navigator.clipboard || !("read" in navigator.clipboard)) {
-        setUploadMessage("Clipboard image paste is not supported in this browser.");
+        setUploadMessage(
+          "Clipboard image paste is not supported in this browser.",
+        );
         return;
       }
-      const items = await (navigator.clipboard as Clipboard & { read: () => Promise<ClipboardItem[]> }).read();
+      const items = await (
+        navigator.clipboard as Clipboard & {
+          read: () => Promise<ClipboardItem[]>;
+        }
+      ).read();
       for (const item of items) {
         const imageType = item.types.find((type) => type.startsWith("image/"));
         if (!imageType) continue;
         const blob = await item.getType(imageType);
-        const file = new File([blob], `pasted-image.${imageType.split("/")[1] || "png"}`, { type: imageType });
+        const file = new File(
+          [blob],
+          `pasted-image.${imageType.split("/")[1] || "png"}`,
+          { type: imageType },
+        );
         loadFile(file);
         return;
       }
       setUploadMessage("No image was found in the clipboard.");
     } catch (err) {
-      setUploadMessage(err instanceof Error ? err.message : "Failed to read image from clipboard.");
+      setUploadMessage(
+        err instanceof Error
+          ? err.message
+          : "Failed to read image from clipboard.",
+      );
     }
   };
 
@@ -305,7 +319,10 @@ export default function App() {
                     </FormControl>
                   ) : (
                     <Stack spacing={1.5}>
-                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1.5}
+                      >
                         <Button variant="outlined" component="label">
                           Upload image
                           <input
@@ -315,7 +332,10 @@ export default function App() {
                             onChange={onUpload}
                           />
                         </Button>
-                        <Button variant="outlined" onClick={() => void onPaste()}>
+                        <Button
+                          variant="outlined"
+                          onClick={() => void onPaste()}
+                        >
                           Paste image
                         </Button>
                       </Stack>
@@ -328,7 +348,9 @@ export default function App() {
                           ? "Custom image loaded."
                           : "No uploaded or pasted image selected yet."}
                       </Typography>
-                      {uploadMessage ? <Alert severity="info">{uploadMessage}</Alert> : null}
+                      {uploadMessage ? (
+                        <Alert severity="info">{uploadMessage}</Alert>
+                      ) : null}
                     </Stack>
                   )}
 
@@ -364,35 +386,39 @@ export default function App() {
                       visible.
                     </Typography>
                   </Box>
-                  <Box>
-                    <Typography gutterBottom>Steps: {steps}</Typography>
-                    <Slider
-                      min={1}
-                      max={20}
-                      step={1}
-                      value={steps}
-                      onChange={(_, v) => setSteps(v as number)}
-                    />
-                    <Typography variant="body2" color="text.secondary">
-                      Steps only matter for the iterative attack. More steps
-                      means the attack is applied in several smaller moves.
-                    </Typography>
-                  </Box>
-                  <Box>
-                    <Typography gutterBottom>
-                      Alpha: {alpha.toFixed(3)}
-                    </Typography>
-                    <Slider
-                      min={0.005}
-                      max={0.08}
-                      step={0.005}
-                      value={alpha}
-                      onChange={(_, v) => setAlpha(v as number)}
-                    />
-                    <Typography variant="body2" color="text.secondary">
-                      Alpha is the size of each iterative step.
-                    </Typography>
-                  </Box>
+                  {attack === "iterative" && (
+                    <>
+                      <Box>
+                        <Typography gutterBottom>Steps: {steps}</Typography>
+                        <Slider
+                          min={1}
+                          max={20}
+                          step={1}
+                          value={steps}
+                          onChange={(_, v) => setSteps(v as number)}
+                        />
+                        <Typography variant="body2" color="text.secondary">
+                          More steps means the attack is applied in several
+                          smaller moves.
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography gutterBottom>
+                          Alpha: {alpha.toFixed(3)}
+                        </Typography>
+                        <Slider
+                          min={0.005}
+                          max={0.08}
+                          step={0.005}
+                          value={alpha}
+                          onChange={(_, v) => setAlpha(v as number)}
+                        />
+                        <Typography variant="body2" color="text.secondary">
+                          Alpha is the size of each iterative step.
+                        </Typography>
+                      </Box>
+                    </>
+                  )}
 
                   <Button
                     variant="contained"
