@@ -171,19 +171,38 @@ export default function App() {
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
       <AppBar position="static" color="primary">
-        <Toolbar>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+        <Toolbar sx={{ overflow: "hidden" }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
             CA Math Expo
           </Typography>
+
           <Box
             sx={{
               width: 2,
               height: 25,
               bgcolor: "rgb(255,255,255)",
               mx: 2,
+              flexShrink: 0,
             }}
           />
-          <Typography variant="h6" sx={{ fontWeight: 500 }}>
+
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 500,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              minWidth: 0,
+            }}
+          >
             Adversarial Machine Learning Attacks
           </Typography>
         </Toolbar>
