@@ -101,7 +101,9 @@ def read_image_bytes(data: str | None, corpus_name: str | None) -> np.ndarray:
             try:
                 raw = base64.b64decode(data, validate=True)
             except binascii.Error as exc:
-                raise ValueError("Uploaded or pasted image data is not valid base64") from exc
+                raise ValueError(
+                    "Uploaded or pasted image data is not valid base64"
+                ) from exc
             img = Image.open(io.BytesIO(raw))
         elif corpus_name:
             img = Image.open(CORPUS_DIR / corpus_name)
@@ -140,17 +142,25 @@ def to_display_png(image: tf.Tensor) -> str:
 
 
 def to_difference_png(original: tf.Tensor, adv: tf.Tensor, epsilon: float) -> str:
-    """Absolute per-channel pixel difference, scaled relative to epsilon.
+    """Signed RGB perturbation visualization.
 
-    Pixels perturbed by the full epsilon appear at ~170/255 brightness.
-    Pixels that were clipped at the [-1, 1] boundary appear darker,
-    revealing spatial structure where the original image was near an extreme.
+    Neutral gray means no change.
+    More red/green/blue means that channel increased.
+    Less red/green/blue means that channel decreased.
     """
     orig_arr = original[0].numpy().astype("float32")
     adv_arr = adv[0].numpy().astype("float32")
-    diff = np.abs(adv_arr - orig_arr)
-    diff_scaled = np.clip(diff / (epsilon * 1.5 + 1e-8), 0.0, 1.0)
-    img = Image.fromarray((diff_scaled * 255.0).astype("uint8")).resize((448, 448))
+
+    orig_disp = (orig_arr + 1.0) * 127.5
+    adv_disp = (adv_arr + 1.0) * 127.5
+
+    delta = adv_disp - orig_disp
+    epsilon_disp = epsilon * 127.5
+
+    vis = np.clip(delta / (epsilon_disp + 1e-8), -1.0, 1.0)
+    vis = ((vis + 1.0) / 2.0 * 255.0).astype("uint8")
+
+    img = Image.fromarray(vis, mode="RGB").resize((448, 448))
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
