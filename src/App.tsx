@@ -30,6 +30,7 @@ import {
 declare global {
   interface Window {
     Chart: any;
+    katex: any;
   }
 }
 
@@ -38,6 +39,7 @@ type TopPrediction = { id: string; label: string; confidence: number };
 type AnalyzeResponse = {
   baseImage: string;
   perturbedImage: string;
+  differenceImage: string;
   baseTop: TopPrediction[];
   perturbedTop: TopPrediction[];
   epsilon: number;
@@ -63,6 +65,7 @@ export default function App() {
   const [uploadMessage, setUploadMessage] = useState("");
   const chartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<any>(null);
+  const formulaRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetch(`${API}/corpus`)
@@ -157,6 +160,49 @@ export default function App() {
     });
     return () => chartInstanceRef.current?.destroy?.();
   }, [result, chartRows]);
+
+  useEffect(() => {
+    if (!result || !formulaRef.current || !window.katex) return;
+    const { katex } = window;
+    const el = formulaRef.current;
+    const display = (s: string) =>
+      katex.renderToString(s, { throwOnError: false, displayMode: true });
+    const inline = (s: string) =>
+      katex.renderToString(s, { throwOnError: false, displayMode: false });
+    const row = (sym: string, desc: string) =>
+      `<tr>
+        <td style="padding:4px 20px 4px 0;vertical-align:top;white-space:nowrap">${inline(sym)}</td>
+        <td style="padding:4px 0;color:#555;font-size:0.875rem;vertical-align:top">${desc}</td>
+      </tr>`;
+    const section =
+      `<p style="margin:14px 0 6px;font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#999">Where</p>`;
+    if (result.attack === "fgsm") {
+      el.innerHTML =
+        display(
+          String.raw`x_{\text{adv}} = x \;+\; \varepsilon \cdot \operatorname{sign}\!\left(\nabla_x\, J(\theta,\, x,\, y)\right)`,
+        ) +
+        section +
+        `<table style="border-collapse:collapse">
+          ${row(String.raw`\varepsilon = ${result.epsilon.toFixed(2)}`, "perturbation budget (max L\u221E norm)")}
+          ${row(String.raw`J(\theta, x, y)`, "cross-entropy loss for the original class")}
+          ${row(String.raw`\nabla_x J`, "gradient of J w.r.t. each input pixel")}
+          ${row(String.raw`\operatorname{sign}(v)`, "+1&nbsp;if&nbsp;v&nbsp;&gt;&nbsp;0,&ensp;\u22121&nbsp;if&nbsp;v&nbsp;&lt;&nbsp;0")}
+        </table>`;
+    } else {
+      el.innerHTML =
+        display(String.raw`x^{(0)} = x`) +
+        display(
+          String.raw`x^{(t+1)} = \operatorname{Clip}_{\varepsilon}\!\left(x^{(t)} + \alpha\cdot\operatorname{sign}\!\left(\nabla_x J\!\left(\theta,\,x^{(t)},\,y\right)\right)\right)`,
+        ) +
+        section +
+        `<table style="border-collapse:collapse">
+          ${row(String.raw`\varepsilon = ${result.epsilon.toFixed(2)}`, "max L\u221E perturbation budget")}
+          ${row(String.raw`\alpha = ${result.alpha.toFixed(3)}`, "step size per iteration")}
+          ${row(String.raw`T = ${result.steps}`, "number of iterations")}
+          ${row(String.raw`\operatorname{Clip}_\varepsilon(\cdot)`, "projects back so \u2016x\u207D\u1D57\u207E\u2212x\u2016\u221E\u2264\u03b5")}
+        </table>`;
+    }
+  }, [result]);
 
   const loadFile = (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -524,6 +570,67 @@ export default function App() {
                 </Card>
               </Stack>
 
+              {result ? (
+                <Stack direction={{ xs: "column", lg: "row" }} spacing={3}>
+                  <Card sx={{ flex: 1 }}>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        Difference image
+                      </Typography>
+                      <Box
+                        component="img"
+                        src={result.differenceImage}
+                        alt="Difference"
+                        sx={{
+                          width: "100%",
+                          borderRadius: 2,
+                          border: "1px solid #ddd",
+                        }}
+                      />
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 1.5 }}
+                      >
+                        Absolute per-channel pixel difference, scaled relative
+                        to ε. Pixels perturbed by the full amount appear
+                        medium-bright; pixels clipped at the image boundary
+                        appear darker.
+                      </Typography>
+                    </CardContent>
+                  </Card>
+
+                  <Card sx={{ flex: 1 }}>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        Attack formula
+                      </Typography>
+                      <Typography
+                        variant="subtitle2"
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        {result.attack === "fgsm"
+                          ? "Fast Gradient Sign Method (FGSM)"
+                          : "Iterative FGSM  (I-FGSM / BIM)"}
+                      </Typography>
+                      <Box sx={{ overflowX: "auto", py: 1 }}>
+                        <div ref={formulaRef} />
+                      </Box>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 2 }}
+                      >
+                        {result.attack === "fgsm"
+                          ? "FGSM moves every pixel in the direction that maximises the model's loss, capped at exactly ε — using the sign ensures the perturbation always hits the L∞ budget."
+                          : `Iterative FGSM repeats ${result.steps} smaller α-steps and clips back to the ε-ball after each one, following the loss landscape more precisely than a single FGSM step.`}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Stack>
+              ) : null}
+
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
@@ -534,6 +641,7 @@ export default function App() {
                   </Box>
                 </CardContent>
               </Card>
+
             </Stack>
           </Stack>
         </Stack>

@@ -139,6 +139,23 @@ def to_display_png(image: tf.Tensor) -> str:
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
 
+def to_difference_png(original: tf.Tensor, adv: tf.Tensor, epsilon: float) -> str:
+    """Absolute per-channel pixel difference, scaled relative to epsilon.
+
+    Pixels perturbed by the full epsilon appear at ~170/255 brightness.
+    Pixels that were clipped at the [-1, 1] boundary appear darker,
+    revealing spatial structure where the original image was near an extreme.
+    """
+    orig_arr = original[0].numpy().astype("float32")
+    adv_arr = adv[0].numpy().astype("float32")
+    diff = np.abs(adv_arr - orig_arr)
+    diff_scaled = np.clip(diff / (epsilon * 1.5 + 1e-8), 0.0, 1.0)
+    img = Image.fromarray((diff_scaled * 255.0).astype("uint8")).resize((448, 448))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+
 @app.get("/api/corpus")
 def corpus():
     files = []
@@ -168,6 +185,7 @@ def _run_analyze(payload: AnalyzeRequest) -> dict:
     return {
         "baseImage": to_display_png(image),
         "perturbedImage": to_display_png(adv),
+        "differenceImage": to_difference_png(image, adv, payload.epsilon),
         "baseTop": base_top,
         "perturbedTop": adv_top,
         "epsilon": payload.epsilon,
