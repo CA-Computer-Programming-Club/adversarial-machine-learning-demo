@@ -174,8 +174,7 @@ export default function App() {
         <td style="padding:4px 20px 4px 0;vertical-align:top;white-space:nowrap">${inline(sym)}</td>
         <td style="padding:4px 0;color:#555;font-size:0.875rem;vertical-align:top">${desc}</td>
       </tr>`;
-    const section =
-      `<p style="margin:14px 0 6px;font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#999">Where</p>`;
+    const section = `<p style="margin:14px 0 6px;font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#999">Where</p>`;
     if (result.attack === "fgsm") {
       el.innerHTML =
         display(
@@ -183,24 +182,25 @@ export default function App() {
         ) +
         section +
         `<table style="border-collapse:collapse">
-          ${row(String.raw`\varepsilon = ${result.epsilon.toFixed(2)}`, "perturbation budget (max L\u221E norm)")}
-          ${row(String.raw`J(\theta, x, y)`, "cross-entropy loss for the original class")}
-          ${row(String.raw`\nabla_x J`, "gradient of J w.r.t. each input pixel")}
-          ${row(String.raw`\operatorname{sign}(v)`, "+1&nbsp;if&nbsp;v&nbsp;&gt;&nbsp;0,&ensp;\u22121&nbsp;if&nbsp;v&nbsp;&lt;&nbsp;0")}
-        </table>`;
+           ${row(String.raw`\varepsilon = ${result.epsilon.toFixed(2)}`, "how much each pixel can change")}
+           ${row(String.raw`J(\theta, x, y)`, "the model's loss")}
+           ${row(String.raw`\operatorname{sign}(\nabla_x J)`, "which direction each pixel should change to maximize the increase in loss")}
+         </table>`;
     } else {
       el.innerHTML =
-        display(String.raw`x^{(0)} = x`) +
+        display(String.raw`x_0 = x`) +
         display(
-          String.raw`x^{(t+1)} = \operatorname{Clip}_{\varepsilon}\!\left(x^{(t)} + \alpha\cdot\operatorname{sign}\!\left(\nabla_x J\!\left(\theta,\,x^{(t)},\,y\right)\right)\right)`,
+          String.raw`x_{t+1} = \operatorname{Clip}_{\varepsilon}\!\left(x_t + \alpha\cdot\operatorname{sign}\!\left(\nabla_x J\!\left(\theta,\,x_t,\,y\right)\right)\right)`,
         ) +
         section +
         `<table style="border-collapse:collapse">
-          ${row(String.raw`\varepsilon = ${result.epsilon.toFixed(2)}`, "max L\u221E perturbation budget")}
-          ${row(String.raw`\alpha = ${result.alpha.toFixed(3)}`, "step size per iteration")}
-          ${row(String.raw`T = ${result.steps}`, "number of iterations")}
-          ${row(String.raw`\operatorname{Clip}_\varepsilon(\cdot)`, "projects back so \u2016x\u207D\u1D57\u207E\u2212x\u2016\u221E\u2264\u03b5")}
-        </table>`;
+           ${row(String.raw`x_0 = x`, "start with the original image")}
+           ${row(String.raw`\alpha = ${result.alpha.toFixed(3)}`, "how much the image changes at each step")}
+           ${row(String.raw`\varepsilon = ${result.epsilon.toFixed(2)}`, "the maximum total change allowed per pixel")}
+           ${row(String.raw`T = ${result.steps}`, "the number of steps")}
+           ${row(String.raw`\operatorname{sign}(\nabla_x J)`, "which direction each pixel should change to maximize the increase in loss")}
+           ${row(String.raw`\operatorname{Clip}_{\varepsilon}(\cdots)`, "after each step, keeps the image within ε of the original")}
+         </table>`;
     }
   }, [result]);
 
@@ -575,7 +575,7 @@ export default function App() {
                   <Card sx={{ flex: 1 }}>
                     <CardContent>
                       <Typography variant="h6" gutterBottom>
-                        Difference image
+                        Pixel difference image
                       </Typography>
                       <Box
                         component="img"
@@ -587,16 +587,6 @@ export default function App() {
                           border: "1px solid #ddd",
                         }}
                       />
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mt: 1.5 }}
-                      >
-                        Absolute per-channel pixel difference, scaled relative
-                        to ε. Pixels perturbed by the full amount appear
-                        medium-bright; pixels clipped at the image boundary
-                        appear darker.
-                      </Typography>
                     </CardContent>
                   </Card>
 
@@ -623,8 +613,8 @@ export default function App() {
                         sx={{ mt: 2 }}
                       >
                         {result.attack === "fgsm"
-                          ? "FGSM moves every pixel in the direction that maximises the model's loss, capped at exactly ε — using the sign ensures the perturbation always hits the L∞ budget."
-                          : `Iterative FGSM repeats ${result.steps} smaller α-steps and clips back to the ε-ball after each one, following the loss landscape more precisely than a single FGSM step.`}
+                          ? "FGSM changes every pixel in the direction that maximises the model's loss by exactly ε."
+                          : `Iterative FGSM takes ${result.steps} small steps of size α. After each step it ensures that the total change never exceeds ε.`}
                       </Typography>
                     </CardContent>
                   </Card>
@@ -641,7 +631,6 @@ export default function App() {
                   </Box>
                 </CardContent>
               </Card>
-
             </Stack>
           </Stack>
         </Stack>
