@@ -613,7 +613,7 @@ export default function App() {
                         sx={{ mt: 2 }}
                       >
                         {result.attack === "fgsm"
-                          ? "FGSM changes every pixel in the direction that maximises the model's loss by exactly ε."
+                          ? "FGSM changes every pixel in the direction that maximizes the model's loss by exactly ε."
                           : `Iterative FGSM takes ${result.steps} small steps of size α. After each step it ensures that the total change never exceeds ε.`}
                       </Typography>
                     </CardContent>
